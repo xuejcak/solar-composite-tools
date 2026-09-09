@@ -229,7 +229,7 @@ def iris_despike(im, int_lim=30, medratio=20, n_isolate=9):
                     im1[ind[0][i], ind[1][i]] = im0[iymax+1, ind[1][i]]
     im2 = im.copy()
     im2[iy0:iyt+1, ix0:ixt+1] = im1
-    im2[im2<-10] = 0
+    # im2[im2<-10] = 0
     return im2
 
 # SCIUV codes
@@ -294,9 +294,9 @@ def lascoMap(f, fbkg=None, despike=False,n_isolate=12):
         mb = mapUpRecenter(m0)
         im0 = m1.data-mb.data
         if despike is True:
-            im0 = iris_despike(im0,600,20,n_isolate)
-            # im1 = iris_despike(im0,600,20,n_isolate)
-            # im0 = -iris_despike(-im1,600,20,n_isolate)
+            # im0 = iris_despike(im0,600,20,n_isolate)
+            im1 = iris_despike(im0,200,20,n_isolate)
+            im0 = -iris_despike(-im1,200,20,n_isolate)
         m1 = smap.Map(im0, m1.meta)
     else:
         if despike is True:
@@ -312,9 +312,9 @@ def lascoMap_norm(f, fbkg=None, despike=False,n_isolate=12):
         mb = mapUpRecenter(m0)/m0.exposure_time
         im0 = m1.data-mb.data
         if despike is True:
-            im0 = iris_despike(im0,600,20,n_isolate)
-            # im1 = iris_despike(im0,600,20,n_isolate)
-            # im0 = -iris_despike(-im1,600,20,n_isolate)
+            # im0 = iris_despike(im0,600,20,n_isolate)
+            im1 = iris_despike(im0,200,20,n_isolate)
+            im0 = -iris_despike(-im1,200,20,n_isolate)
         m1 = smap.Map(im0, m1.meta)
     else:
         if despike is True:
