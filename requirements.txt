@@ -1,0 +1,13 @@
+# Core scientific computing and visualization
+numpy>=1.22.0
+matplotlib>=3.5.0
+scipy>=1.8.0
+
+# Astronomy and Solar Physics
+astropy>=5.0
+sunpy>=4.0
+
+# Image processing (useful for scaling, alignment, and blending)
+Pillow>=9.0.0
+scikit-image>=0.19.0
+reproject>=0.9
