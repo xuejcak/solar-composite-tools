@@ -129,8 +129,9 @@ def mapUpRecenter(m0):
     hdr['crpix1'] = (nx+1)/2
     hdr['crpix2'] = (ny+1)/2
     hdr['pc1_1'] = 1; hdr['pc1_2'] = 0; hdr['pc2_1'] = 0; hdr['pc2_2'] = 1
+    hdr['crota2'] = 0
     try:
-        del hdr['crota2'], hdr['crota1']
+        del hdr['crota1']
     except:
         pass
     m1 = smap.Map(imb,hdr)
@@ -266,6 +267,7 @@ def scihdr(hdr0, cdelt=2.4, crvals=[0,0], crpixs=[1024.5,1029.5], rotrad=-0.04, 
     hdr['crpix2'] = crpixs[1]
     hdr['cdelt1'] = cdelt
     hdr['cdelt2'] = cdelt
+    hdr['crota2'] = rotrad*180/np.pi
     hdr['pc1_1'] = hdr['pc2_2'] = np.cos(rotrad)
     hdr['pc1_2'] = -np.sin(rotrad)
     hdr['pc2_1'] = np.sin(rotrad)
@@ -286,39 +288,26 @@ def scimap(img0, hdr, cmap=None, vmin=10, vmax=1500):
     return msci
 
 # LASCO codes
-def lascoMap(f, fbkg=None, despike=False,n_isolate=12):
+def lascoMap(f, fbkg=None, despike=False, int_lim=200, medratio=20, n_isolate=50, expNorm=False):
+    # int_lim, medratio, are n_isolate are three parameters for despike.
     m0 = smap.Map(f)
     m1 = mapUpRecenter(m0)
+    if expNorm is True:
+        m1 = m1/m1.exposure_time
     if fbkg is not None:
         m0 = smap.Map(fbkg)
         mb = mapUpRecenter(m0)
+        if expNorm is True:
+            mb = mb/mb.exposure_time
         im0 = m1.data-mb.data
         if despike is True:
             # im0 = iris_despike(im0,600,20,n_isolate)
-            im1 = iris_despike(im0,200,20,n_isolate)
-            im0 = -iris_despike(-im1,200,20,n_isolate)
+            im1 = iris_despike(im0,int_lim,medratio,n_isolate)
+            im0 = -iris_despike(-im1,int_lim,medratio,n_isolate)
         m1 = smap.Map(im0, m1.meta)
     else:
         if despike is True:
-            im0 = iris_despike(m1.data,3000,2,n_isolate)
-            m1 = smap.Map(im0,m1.meta)
-    return m1
-
-def lascoMap_norm(f, fbkg=None, despike=False,n_isolate=12):
-    m0 = smap.Map(f)
-    m1 = mapUpRecenter(m0)/m0.exposure_time
-    if fbkg is not None:
-        m0 = smap.Map(fbkg)
-        mb = mapUpRecenter(m0)/m0.exposure_time
-        im0 = m1.data-mb.data
-        if despike is True:
-            # im0 = iris_despike(im0,600,20,n_isolate)
-            im1 = iris_despike(im0,200,20,n_isolate)
-            im0 = -iris_despike(-im1,200,20,n_isolate)
-        m1 = smap.Map(im0, m1.meta)
-    else:
-        if despike is True:
-            im0 = iris_despike(m1.data,3000,2,n_isolate)
+            im0 = iris_despike(m1.data,int_lim,medratio,n_isolate)
             m1 = smap.Map(im0,m1.meta)
     return m1
 
@@ -326,6 +315,9 @@ def combineDisk_lasco(mdisk, mc2, vc2=[1,1500], vdisk=[1,200], rmask=2, cmapdisk
     '''
     Combine disk and c2 maps to a new image, used for difference image.
     '''
+    if abs(mdisk.meta['crota2'])>0.1 or abs(mc2.meta['crota2'])>0.1:
+        print('Please make both maps NorthUp and recentered before using this code')
+        return -1,-1
     nya, nxa = mdisk.data.shape
     nxn = int(nxa/(mc2.meta['cdelt1']/mdisk.scale.axis1.value))
     nyn = int(nya/(mc2.meta['cdelt2']/mdisk.scale.axis2.value))
@@ -338,8 +330,8 @@ def combineDisk_lasco(mdisk, mc2, vc2=[1,1500], vdisk=[1,200], rmask=2, cmapdisk
         print('mc2 should be complete images without cropping')
     imc2 = removenan(mc2.data)
     imdisk = removenan(mdiskb.data)
-    imc2 = norm8(imc2, vc2[0], vc2[1])
-    imdisk = norm8(imdisk, vdisk[0], vdisk[1])
+    imc2 = norm0_1(imc2, vc2[0], vc2[1])
+    imdisk = norm0_1(imdisk, vdisk[0], vdisk[1])
     rrdisk = dist_circle([nyn, nxn])*mc2.meta['cdelt1']
     rrc2 = dist_circle([nys,nxs])*mc2.meta['cdelt1']
     idxdisk = rrdisk<rsun_obs*rmask
@@ -391,6 +383,8 @@ def combineDisk_SCI(mdisk, msci, vsci=[1,1500], vdisk=[1,200], logsci=True, logd
         rsun_obs = mdisk.meta['rsun_obs']
     except:
         rsun_obs = msci.meta['rsun_obs']
+    if abs(mdisk.meta['pc1_2'])>1.e-3:
+        mdisk = mapUpRecenter(mdisk)
     nya, nxa = mdisk.data.shape
     scaleDisk = (mdisk.scale.axis1.to(u.arcsec/u.pix)).value
     nxn = int(nxa/(scaleSCI/scaleDisk))
@@ -398,17 +392,11 @@ def combineDisk_SCI(mdisk, msci, vsci=[1,1500], vdisk=[1,200], logsci=True, logd
     mdiskb = mdisk.resample(dimensions=(nxn, nyn)*u.pix) # scale to 2.4 arcsec/pix
     nys, nxs = msci.data.shape
     if abs(msci.meta['pc1_2'])>1.e-3:
-        # print('Please northup the maps firstly.')
-        # return -1,-1
-        mscib = msci.rotate(recenter=True)
-        nysb, nxsb = mscib.data.shape
-        ix0 = int(round((nxsb-nxs)/2))
-        iy0 = int(round((nysb-nys)/2))
-        msci = smap.Map(mscib.data[iy0:iy0+nys,ix0:ix0+nxs], mscib.meta)
+        msci = mapUpRecenter(msci)
     if nys!=2048 or nxs!=2048:
         print('msci should be complete images without cropping')
         return -1,-1
-    nx = ny = 2048
+    # nx = ny = 2048
     # ixa = int((nxs-nx)/2); ixb = ixa+nx
     # iya = int((nys-ny)/2); iyb = iya+ny
     imsci = removenan(msci.data) # [iya:iyb,ixa:ixb])
@@ -441,4 +429,5 @@ def combineDisk_SCI(mdisk, msci, vsci=[1,1500], vdisk=[1,200], logsci=True, logd
         imout = imout.astype(np.float32)
     edg = 1024*scaleSCI
     edgs = [-edg, edg, -edg, edg]
-    return imout, edgs
+    # msci.fits_header is possibly updated if rotation is applied.
+    return imout, edgs, msci.fits_header
