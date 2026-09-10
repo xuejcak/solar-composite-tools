@@ -311,6 +311,30 @@ def lascoMap(f, fbkg=None, despike=False, int_lim=200, medratio=20, n_isolate=50
             m1 = smap.Map(im0,m1.meta)
     return m1
 
+def lascoMapb(f, fbkg=None, despike=False, int_lim=200, medratio=20, n_isolate=50, expNorm=False):
+    # In lascoMap function, the target map f and bkg map fbkg are rotated firstly then subtracted. However, the different transformation parameters lead to residual errors in the difference image. 
+    # In this function, the background is subtracted directly, then conduct northup and recenter.
+    # int_lim, medratio, are n_isolate are three parameters for despike.
+    m0 = smap.Map(f)
+    if expNorm is True:
+        m0 = m0/m0.exposure_time
+    if fbkg is not None:
+        mb0 = smap.Map(fbkg)
+        if expNorm is True:
+            mb0 = mb0/mb0.exposure_time
+        m0b = smap.Map(m0.data - mb0.data, m0.meta)
+        m1 = mapUpRecenter(m0b)
+        if despike is True:
+            im1 = iris_despike(m1.data,int_lim,medratio,n_isolate)
+            im0 = -iris_despike(-im1,int_lim,medratio,n_isolate)
+            m1 = smap.Map(im0, m1.meta)
+    else:
+        m1 = mapUpRecenter(m0)
+        if despike is True:
+            im0 = iris_despike(m1.data,int_lim,medratio,n_isolate)
+            m1 = smap.Map(im0,m1.meta)
+    return m1
+
 def combineDisk_lasco(mdisk, mc2, vc2=[1,1500], vdisk=[1,200], rmask=2, cmapdisk=None, cmapc2=None, rsun_obs=969.8933):
     '''
     Combine disk and c2 maps to a new image, used for difference image.
