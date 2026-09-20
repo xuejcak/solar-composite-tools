@@ -1,5 +1,5 @@
 # solar-composite-tools
-High-performance Python utilities for combining and compositing full-disk solar imagery (e.g., SDO/AIA, GOES-R/SUVI) with coronagraph observations (e.g., ASO-S/LST/SCI, SOHO/LASCO).
+High-performance Python utilities for combining and compositing full-disk solar imagery (e.g., ASO-S/LST/SDI, SDO/AIA, GOES-R/SUVI) with coronagraph observations (e.g., ASO-S/LST/SCI, SOHO/LASCO).
 
 ## 🚀 Key Advantages & Design Focus
 
@@ -12,7 +12,7 @@ This package offers a lightweight, fast alternative optimized for rapid visual c
 ## 📁 Repository Structure
 
 * **`solar_composite_tools.py`**: Core library containing map alignment, scaling, and compositing functions.
-* **`examples.ipynb`**: Interactive Jupyter Notebook with two step-by-step examples demonstrating full-disk + coronagraph overlays.
+* **`examples.ipynb`**: Interactive Jupyter Notebook with three step-by-step examples demonstrating full-disk + coronagraph overlays.
 * **`requirements.txt`**: Standard dependencies list for one-step environment setup.
 
 ---
